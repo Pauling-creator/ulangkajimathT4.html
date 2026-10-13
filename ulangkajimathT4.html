@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ulangkaji Matematik KSSM T4 - SMK Perempuan Methodist Melaka</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Latar belakang kelabu lembut */
+        }
+        
+        .bg-school-blue { background-color: #1e3a8a; } /* Biru gelap sekolah */
+        .text-school-blue { color: #1e3a8a; }
+        .bg-school-gold { background-color: #d97706; } /* Emas */
+        .text-school-gold { color: #d97706; }
+        
+        .fade-in { animation: fadeIn 0.4s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-hover-effect {
+            transition: all 0.2s ease;
+        }
+        .btn-hover-effect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .option-btn {
+            transition: all 0.2s ease;
+            border: 2px solid #e5e7eb;
+        }
+        .option-btn:hover:not(:disabled) {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .option-correct {
+            background-color: #d1fae5 !important;
+            border-color: #10b981 !important;
+            color: #065f46 !important;
+        }
+        .option-wrong {
+            background-color: #fee2e2 !important;
+            border-color: #ef4444 !important;
+            color: #991b1b !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Kontena Utama Aplikasi -->
+    <div id="app" class="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden relative min-h-[500px] flex flex-col">
+        <!-- Pengepala Aplikasi -->
+        <header class="bg-school-blue text-white p-6 text-center shadow-md relative z-10">
+            <!-- CARA 2: Gantikan teks SILA_TAMPAL_LINK_GAMBAR_DI_SINI dengan Direct Link dari Postimages.org -->
+            <img src="https://i.postimg.cc/BQ11syJk/logo-mgss-3d-removebg-preview.png" alt="Logo SMK Perempuan Methodist Melaka" class="h-32 w-auto mx-auto mb-4 drop-shadow-2xl hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/200x200/1e3a8a/FFD700?text=Sila+Tampal+Link\nLogo+Di+Sini'">
+            <h1 class="text-2xl font-bold tracking-wide mt-3">ULANGKAJI MATEMATIK</h1>
+            <h2 class="text-sm font-light opacity-90">KSSM Tingkatan 4</h2>
+            <p class="text-yellow-400 font-semibold mt-2 tracking-widest text-xs">LIVE WORTHILY</p>
+        </header>
+
+        <!-- Kawasan Dinamik -->
+        <main id="app-content" class="flex-grow p-6 flex flex-col justify-center items-center relative">
+            <div id="loader" class="text-school-blue flex flex-col items-center">
+                <i class="fas fa-spinner fa-spin fa-3x mb-4"></i>
+                <p>Memuatkan sistem...</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Notifikasi (Pengganti alert) -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center fade-in">
+            <h3 id="modal-title" class="text-lg font-bold text-gray-800 mb-2">Mesej</h3>
+            <p id="modal-message" class="text-gray-600 mb-6">Kandungan mesej di sini.</p>
+            <button onclick="closeModal()" class="bg-school-blue text-white px-6 py-2 rounded-lg font-semibold w-full hover:bg-blue-800 transition">OK</button>
+        </div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Konfigurasi Global Persekitaran
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'matematik-t4-kssm';
+    const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+    let firebaseConfig = {};
+    
+    try {
+        firebaseConfig = JSON.parse(firebaseConfigStr);
+    } catch (e) {
+        console.warn("Menggunakan Firebase fallback configuration untuk persekitaran tempatan.");
+        // Fallback untuk ujian tanpa error jika tiada config
+        firebaseConfig = { projectId: "dummy-project" }; 
+    }
+
+    let app, db, auth;
+    let isFirebaseReady = false;
+
+    // Inisialisasi Firebase jika config wujud
+    if (firebaseConfig.projectId) {
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch(e) {
+            console.error("Firebase init error:", e);
+        }
+    }
+
+    // State Aplikasi
+    const State = {
+        view: 'role-select', // role-select, teacher-login, teacher-dash, student-login, level-select, topic-select, game, result
+        student: { name: '', className: '', teacherEmail: '' },
+        teacher: { email: '' },
+        currentLevel: 1,
+        currentTopicIndex: 0, // Bab 1 hingga 10
+        currentQIndex: 0,
+        score: 0,
+        topicScore: 0,
+        isAnswered: false,
+        topics: [
+            "Bab 1: Fungsi dan Persamaan Kuadratik",
+            "Bab 2: Asas Nombor",
+            "Bab 3: Penaakulan Logik",
+            "Bab 4: Operasi Set",
+            "Bab 5: Rangkaian dalam Teori Graf",
+            "Bab 6: Ketaksamaan Linear",
+            "Bab 7: Graf Gerakan",
+            "Bab 8: Sukatan Serakan Data Tak Terkumpul",
+            "Bab 9: Kebarangkalian Peristiwa Bergabung",
+            "Bab 10: Matematik Pengguna"
+        ]
+    };
+
+    // Data Soalan (10 Bab x 3 Level x 3 Soalan = 90 Soalan)
+    const QuizData = {
+        // TAHAP 1: SENANG
+        1: [
+            // Bab 1: Fungsi Kuadratik
+            [
+                { question: "Apakah bentuk am bagi ungkapan kuadratik?", options: ["ax + b", "ax² + bx + c", "ax³ + bx² + c", "mx + c"], answerIndex: 1, solution: "Bentuk am ungkapan kuadratik ialah ax² + bx + c, di mana a ≠ 0 dan kuasa tertinggi pemboleh ubah ialah 2." },
+                { question: "Kembangkan x(x + 5).", options: ["x² + 5x", "2x + 5", "x² + 5", "x + 5x"], answerIndex: 0, solution: "Darabkan x dengan setiap sebutan di dalam kurungan: x(x) + x(5) = x² + 5x." },
+                { question: "Tentukan nilai a, b dan c bagi ungkapan 2x² - 3x + 1.", options: ["a=2, b=3, c=1", "a=2, b=-3, c=1", "a=-2, b=3, c=-1", "a=1, b=2, c=-3"], answerIndex: 1, solution: "Bandingkan dengan ax² + bx + c. Maka a = 2, b = -3, c = 1." }
+            ],
+            // Bab 2: Asas Nombor
+            [
+                { question: "Apakah digit-digit yang digunakan dalam asas 5?", options: ["0, 1, 2, 3, 4", "1, 2, 3, 4, 5", "0, 1, 2, 3", "0, 1, 2, 3, 4, 5"], answerIndex: 0, solution: "Asas 5 menggunakan digit dari 0 hingga 4 (kurang 1 daripada nilai asas)." },
+                { question: "Nyatakan nilai tempat bagi digit 3 dalam nombor 1302₄.", options: ["4⁰", "4¹", "4²", "4³"], answerIndex: 2, solution: "Nilai tempat dikira dari kanan: 2(4⁰), 0(4¹), 3(4²), 1(4³)." },
+                { question: "Tukar 14₁₀ kepada asas 2.", options: ["1101₂", "1110₂", "1011₂", "1001₂"], answerIndex: 1, solution: "Bahagi 14 dengan 2 secara berulang: 14/2=7(baki 0), 7/2=3(baki 1), 3/2=1(baki 1), 1/2=0(baki 1). Baca dari bawah ke atas: 1110₂." }
+            ],
+            // Bab 3: Penaakulan Logik
+            [
+                { question: "Tentukan sama ada pernyataan ini benar atau palsu: '2 ialah nombor perdana dan 4 ialah nombor ganjil'.", options: ["Benar", "Palsu", "Bukan pernyataan", "Mungkin benar"], answerIndex: 1, solution: "'2 ialah nombor perdana' (Benar). '4 ialah nombor ganjil' (Palsu). Benar DAN Palsu menghasilkan Palsu." },
+                { question: "Apakah pengkuantiti yang sesuai untuk melengkapkan pernyataan: '____ segi tiga mempunyai 3 sisi'?", options: ["Sebilangan", "Semua", "Beberapa", "Kebanyakan"], answerIndex: 1, solution: "Semua segi tiga secara definisinya mempunyai 3 sisi. Jadi 'Semua' adalah tepat." },
+                { question: "Bentuk satu penafian (~p) bagi p: '5 ialah faktor bagi 10'.", options: ["10 ialah faktor bagi 5.", "5 bukan faktor bagi 10.", "5 didarab 2 ialah 10.", "10 bukan gandaan 5."], answerIndex: 1, solution: "Penafian (~) menukarkan kebenaran pernyataan. Tambah perkataan 'bukan' atau 'tidak'." }
+            ],
+            // Bab 4: Operasi Set
+            [
+                { question: "Jika A = {1, 2, 3} dan B = {3, 4, 5}, apakah A ∩ B?", options: ["{1, 2, 4, 5}", "{3}", "{1, 2, 3, 4, 5}", "{}"], answerIndex: 1, solution: "Simbol ∩ (persilangan) bermaksud unsur yang ada dalam KEDUA-DUA set. Hanya nombor 3 yang berkongsi." },
+                { question: "Simbol ∪ mewakili...", options: ["Persilangan", "Pelengkap", "Kesatuan", "Subset"], answerIndex: 2, solution: "∪ ialah Kesatuan (Union), yang menggabungkan semua unsur dalam set-set yang terlibat." },
+                { question: "Diberi ξ = {1,2,3,4,5} dan P = {2,4}. Senaraikan P' (pelengkap bagi P).", options: ["{2, 4}", "{1, 3, 5}", "{1, 2, 3, 4, 5}", "{}"], answerIndex: 1, solution: "P' ialah semua unsur dalam set semesta (ξ) yang TIDAK ada dalam set P." }
+            ],
+            // Bab 5: Rangkaian
+            [
+                { question: "Dalam teori graf, V mewakili apa?", options: ["Tepi (Edges)", "Bucu (Vertices)", "Darjah (Degree)", "Laluan (Path)"], answerIndex: 1, solution: "V adalah singkatan bagi Vertices yang bermaksud Bucu atau nod." },
+                { question: "Sebuah graf mempunyai 4 bucu. Apakah darjah maksimum yang mungkin bagi satu bucu jika graf itu ialah graf mudah?", options: ["2", "3", "4", "5"], answerIndex: 1, solution: "Dalam graf mudah (tiada gelung/berbilang tepi), satu bucu boleh bersambung dengan bucu-bucu yang lain (4 - 1 = 3)." },
+                { question: "Graf yang mempunyai pemberat pada tepinya dipanggil...", options: ["Graf terarah", "Graf tak terarah", "Graf berpemberat", "Graf mudah"], answerIndex: 2, solution: "Pemberat ialah nilai seperti jarak, kos, atau masa yang diletakkan pada tepi graf." }
+            ],
+             // Bab 6: Ketaksamaan Linear
+            [
+                { question: "Simbol yang manakah mewakili 'lebih besar daripada atau sama dengan'?", options: ["<", ">", "≤", "≥"], answerIndex: 3, solution: "≥ bermaksud 'lebih besar daripada' (>) digabungkan dengan 'sama dengan' (=)." },
+                { question: "Kawasan manakah yang diwakili oleh y > 2x?", options: ["Atas garisan pepejal", "Atas garisan sempang", "Bawah garisan pepejal", "Bawah garisan sempang"], answerIndex: 1, solution: "Simbol > bermaksud rantau ATAS, dan ketiadaan tanda '=' bermaksud garisan SEMPANG." },
+                { question: "Selesaikan ketaksamaan 2x > 8.", options: ["x > 4", "x < 4", "x ≥ 4", "x = 4"], answerIndex: 0, solution: "Bahagikan kedua-dua belah dengan 2. 2x/2 > 8/2 menjadi x > 4." }
+            ],
+             // Bab 7: Graf Gerakan
+            [
+                { question: "Kecerunan pada graf Jarak-Masa mewakili...", options: ["Pecutan", "Laju", "Jarak", "Masa"], answerIndex: 1, solution: "Kecerunan = Jarak / Masa, yang merupakan formula bagi Laju." },
+                { question: "Garisan mendatar pada graf Jarak-Masa bermaksud objek sedang...", options: ["Mecut", "Nyahpecut", "Pegun (Berhenti)", "Bergerak laju malar"], answerIndex: 2, solution: "Jarak tidak berubah walaupun masa berlalu, bermakna objek itu tidak bergerak (pegun)." },
+                { question: "Kecerunan pada graf Laju-Masa mewakili...", options: ["Jarak", "Laju", "Pecutan", "Sesaran"], answerIndex: 2, solution: "Kecerunan = Perubahan Laju / Masa, yang merupakan formula bagi Pecutan." }
+            ],
+            // Bab 8: Sukatan Serakan
+            [
+                { question: "Apakah rumus bagi Julat?", options: ["Nilai terbesar + Nilai terkecil", "Nilai terbesar - Nilai terkecil", "Kuartil 3 - Kuartil 1", "Min x Kekerapan"], answerIndex: 1, solution: "Julat ialah beza antara cerapan yang paling besar dengan cerapan yang paling kecil." },
+                { question: "Data: 2, 4, 6, 8, 10. Apakah median?", options: ["4", "5", "6", "8"], answerIndex: 2, solution: "Median ialah nilai di tengah-tengah data yang telah disusun. Di sini, nilai tengah ialah 6." },
+                { question: "Simbol σ mewakili...", options: ["Varians", "Sisihan Piawai", "Min", "Julat Antarakuartil"], answerIndex: 1, solution: "σ (sigma) mewakili sisihan piawai. σ² pula ialah varians." }
+            ],
+             // Bab 9: Kebarangkalian
+            [
+                { question: "Apakah simbol bagi peristiwa bersandar?", options: ["A ∪ B", "A ∩ B", "A' ", "P(A|B)"], answerIndex: 1, solution: "Peristiwa bersandar selalunya dikaitkan dengan persilangan (A dan B) berlaku bersama." },
+                { question: "Jika P(A) = 0.4, apakah P(A')?", options: ["0.4", "0.6", "1.0", "0.0"], answerIndex: 1, solution: "Jumlah kebarangkalian ialah 1. Maka P(A') = 1 - 0.4 = 0.6." },
+                { question: "Melambung syiling dan membaling dadu serentak adalah contoh peristiwa...", options: ["Bersandar", "Saling Eksklusif", "Tak Bersandar", "Pasti"], answerIndex: 2, solution: "Kesudahan syiling (Kepala/Bunga) tidak mempengaruhi kesudahan dadu (1-6)." }
+            ],
+            // Bab 10: Matematik Pengguna
+            [
+                { question: "Apakah formula Faedah Mudah?", options: ["I = Prt", "MV = P(1 + r/n)^nt", "A = P + I", "ROI = (Untung/Modal) x 100%"], answerIndex: 0, solution: "I (Interest) = P (Principal) × r (rate) × t (time)." },
+                { question: "Apakah maksud ROI?", options: ["Return of Interest", "Return on Investment", "Rate of Income", "Risk of Investment"], answerIndex: 1, solution: "ROI bermaksud Return on Investment (Pulangan Atas Pelaburan)." },
+                { question: "Amanah Saham Nasional Berhad (ASNB) merupakan contoh pelaburan jenis...", options: ["Hartanah", "Saham", "Amanah Saham", "Simpanan Tetap"], answerIndex: 2, solution: "ASNB ialah pengurus dana Amanah Saham terbesar di Malaysia." }
+            ]
+        ],
+        // TAHAP 2: SEDERHANA
+        2: [
+            // Bab 1: Fungsi Kuadratik
+            [
+                { question: "Faktorkan ungkapan x² - 16.", options: ["(x - 4)²", "(x - 4)(x + 4)", "(x - 8)(x + 2)", "(x + 16)(x - 1)"], answerIndex: 1, solution: "Ini ialah bentuk (a² - b²), yang difaktorkan kepada (a - b)(a + b). x² - 4² = (x - 4)(x + 4)." },
+                { question: "Cari punca bagi x² - 5x + 6 = 0.", options: ["x=2, x=3", "x=-2, x=-3", "x=1, x=6", "x=-1, x=-6"], answerIndex: 0, solution: "Faktorkan: (x - 2)(x - 3) = 0. Maka x = 2 atau x = 3." },
+                { question: "Tentukan paksi simetri bagi graf f(x) = x² - 4x + 3.", options: ["x = -2", "x = 4", "x = 2", "x = -4"], answerIndex: 2, solution: "Rumus paksi simetri: x = -b / (2a). x = -(-4) / (2(1)) = 4 / 2 = 2." }
+            ],
+            // Bab 2: Asas Nombor
+            [
+                { question: "Tukar 34₅ kepada asas 10.", options: ["19", "15", "34", "17"], answerIndex: 0, solution: "3(5¹) + 4(5⁰) = 15 + 4 = 19₁₀." },
+                { question: "Kira hasil tambah: 110₂ + 101₂", options: ["1011₂", "1001₂", "1111₂", "1100₂"], answerIndex: 0, solution: "110₂ = 6₁₀, 101₂ = 5₁₀. 6 + 5 = 11₁₀. Tukar 11₁₀ kepada asas 2: 1011₂." },
+                { question: "Diberi m₂ = 13₁₀. Cari nilai m.", options: ["1101", "1011", "1110", "1111"], answerIndex: 0, solution: "Tukar 13₁₀ ke asas 2: 13/2=6(1), 6/2=3(0), 3/2=1(1), 1/2=0(1). Dibaca dari bawah: 1101₂." }
+            ],
+            // Bab 3: Penaakulan Logik
+            [
+                { question: "Nyatakan implikasi 'Jika p maka q' bagi p: x = 3, q: x² = 9.", options: ["Jika x² = 9, maka x = 3.", "Jika x = 3, maka x² = 9.", "x = 3 jika dan hanya jika x² = 9.", "Jika x ≠ 3, maka x² ≠ 9."], answerIndex: 1, solution: "Susun mengikut struktur 'Jika [p], maka [q]'." },
+                { question: "Apakah songsangan bagi 'Jika hujan, maka jalan basah'?", options: ["Jika jalan basah, maka hujan.", "Jika tidak hujan, maka jalan tidak basah.", "Jika jalan tidak basah, maka tidak hujan.", "Hujan jika dan hanya jika jalan basah."], answerIndex: 1, solution: "Songsangan bagi 'Jika p maka q' ialah 'Jika ~p maka ~q'." },
+                { question: "Tentukan jenis hujah ini: Premis 1: Semua A ialah B. Premis 2: C ialah A. Kesimpulan: C ialah B.", options: ["Hujah Induktif", "Hujah Deduktif Bentuk I", "Hujah Deduktif Bentuk II", "Hujah Deduktif Bentuk III"], answerIndex: 1, solution: "Ini ialah struktur Silogisme (Hujah Deduktif Bentuk I)." }
+            ],
+             // Bab 4: Operasi Set
+            [
+                { question: "Diberi ξ = {1,2,3,4,5,6}, A={2,4,6}, B={1,2,3}. Cari (A ∪ B)'.", options: ["{5}", "{1, 3, 5}", "{4, 6}", "{1, 2, 3, 4, 6}"], answerIndex: 0, solution: "(A ∪ B) = {1,2,3,4,6}. Pelengkapnya ialah unsur dalam ξ yang tiada dalam (A ∪ B), iaitu {5}." },
+                { question: "Jika n(A) = 15, n(B) = 10, dan n(A ∩ B) = 5, cari n(A ∪ B).", options: ["25", "30", "20", "15"], answerIndex: 2, solution: "Guna rumus: n(A ∪ B) = n(A) + n(B) - n(A ∩ B) = 15 + 10 - 5 = 20." },
+                { question: "Kawasan berlorek yang mewakili (P ∩ Q) ∪ R bermaksud...", options: ["Persilangan P dan Q, ATAU semua R.", "Persilangan P dan Q, DAN juga R.", "Semua P, Q dan R.", "Kawasan P dan Q sahaja."], answerIndex: 0, solution: "Kesatuan (∪) bermaksud ATAU (tambahkan kawasan R kepada persilangan P dan Q)." }
+            ],
+            // Bab 5: Rangkaian
+            [
+                { question: "Sebuah pokok (tree) dengan n bucu mesti mempunyai berapa tepi?", options: ["n", "n + 1", "n - 1", "2n"], answerIndex: 2, solution: "Sifat utama pokok dalam graf: Bilangan Tepi = Bilangan Bucu - 1 (E = V - 1)." },
+                { question: "Jumlah darjah dalam mana-mana graf adalah bersamaan dengan...", options: ["Bilangan bucu", "2 x Bilangan tepi", "Bilangan tepi", "Bilangan bucu - 1"], answerIndex: 1, solution: "Setiap tepi menyumbang 2 darjah (satu di setiap hujung bucu). Jadi Jumlah Darjah = 2E." },
+                { question: "Jika jumlah darjah graf ialah 14, berapakah bilangan tepinya?", options: ["7", "14", "28", "6"], answerIndex: 0, solution: "Jumlah Darjah = 2E. 14 = 2E. Maka E = 14 / 2 = 7 tepi." }
+            ],
+            // Bab 6: Ketaksamaan Linear
+            [
+                { question: "Selesaikan 3x - 5 ≤ x + 7.", options: ["x ≤ 6", "x ≥ 6", "x ≤ 12", "x ≤ 1"], answerIndex: 0, solution: "3x - x ≤ 7 + 5 -> 2x ≤ 12 -> x ≤ 6." },
+                { question: "Jika y < -2x + 4 dan y > x - 2 dilukis, rantaunya berbentuk...", options: ["Segi tiga", "Segi empat", "Trapezium", "Terbuka (Tiada sempadan penuh)"], answerIndex: 3, solution: "Hanya dua garis lurus tidak membentuk poligon tertutup, jadi kawasan penyelesaian adalah terbuka di satu sisi." },
+                { question: "Titik manakah memuaskan y ≥ x + 2?", options: ["(0, 0)", "(1, 2)", "(2, 5)", "(3, 4)"], answerIndex: 2, solution: "Ganti koordinat (2,5): y(5) ≥ x(2) + 2 -> 5 ≥ 4 (Benar)." }
+            ],
+             // Bab 7: Graf Gerakan
+            [
+                { question: "Luas di bawah graf Laju-Masa mewakili...", options: ["Laju purata", "Pecutan", "Jarak yang dilalui", "Masa yang diambil"], answerIndex: 2, solution: "Daripada Laju = Jarak/Masa, Jarak = Laju x Masa (iaitu Luas kawasan di bawah graf)." },
+                { question: "Jika objek memecut dari 0 ke 10 m/s dalam 5 saat, berapakah pecutannya?", options: ["50 m/s²", "2 m/s²", "5 m/s²", "10 m/s²"], answerIndex: 1, solution: "Pecutan = (Laju Akhir - Laju Awal) / Masa = (10 - 0) / 5 = 2 m/s²." },
+                { question: "Rumus Laju Purata ialah...", options: ["Jumlah Jarak / Jumlah Masa", "Laju Akhir - Laju Awal", "Masa / Jarak", "Jarak X Masa"], answerIndex: 0, solution: "Laju Purata mesti mengambil kira Jumlah Jarak yang dilalui dibahagikan dengan Jumlah Masa yang diambil." }
+            ],
+            // Bab 8: Sukatan Serakan
+            [
+                { question: "Kuartil Pertama (Q1) ialah...", options: ["Nilai cerapan ke-50%", "Nilai cerapan ke-25%", "Nilai cerapan ke-75%", "Julat dibahagi 4"], answerIndex: 1, solution: "Q1 terletak pada persentil ke-25 (suku pertama data)." },
+                { question: "Diberi Julat Antarakuartil (IQR) = Q3 - Q1. Jika Q3=15 dan Q1=6, IQR ialah...", options: ["21", "9", "90", "2.5"], answerIndex: 1, solution: "IQR = 15 - 6 = 9." },
+                { question: "Jika setiap cerapan dalam data ditambah 5, apakah yang terjadi kepada Sisihan Piawai?", options: ["Bertambah 5", "Bertambah 25", "Tidak berubah", "Dikalab 5"], answerIndex: 2, solution: "Penambahan/Penolakan malar pada setiap data TIDAK mengubah serakan (julat, varians, sisihan piawai)." }
+            ],
+             // Bab 9: Kebarangkalian
+            [
+                { question: "Sebiji dadu adil dilambung 2 kali. Berapakah ruang sampel n(S)?", options: ["6", "12", "36", "24"], answerIndex: 2, solution: "Lambungan pertama ada 6 kesudahan, lambungan kedua ada 6. 6 x 6 = 36." },
+                { question: "P(A) = 1/3, P(B) = 1/2. Jika A dan B tak bersandar, cari P(A ∩ B).", options: ["5/6", "1/6", "2/5", "1"], answerIndex: 1, solution: "Bagi peristiwa tak bersandar, P(A ∩ B) = P(A) x P(B) = (1/3) x (1/2) = 1/6." },
+                { question: "Kebarangkalian Ali lulus ialah 0.8. Cari kebarangkalian dia GAGAL.", options: ["0.2", "0.8", "1.0", "0.0"], answerIndex: 0, solution: "Peristiwa pelengkap: 1 - 0.8 = 0.2." }
+            ],
+            // Bab 10: Matematik Pengguna
+            [
+                { question: "Simpanan RM2000 dengan faedah mudah 3% setahun selama 2 tahun. Berapakah faedahnya?", options: ["RM60", "RM120", "RM2120", "RM600"], answerIndex: 1, solution: "I = Prt = 2000 x (3/100) x 2 = RM120." },
+                { question: "Satu saham dibeli pada RM1.50 dan dijual pada RM1.80. Berapakah nilai keuntungan seunit?", options: ["RM0.30", "RM3.30", "RM1.80", "RM0.50"], answerIndex: 0, solution: "Keuntungan = Harga Jual - Harga Beli = 1.80 - 1.50 = RM0.30." },
+                { question: "Ahmad meminjam RM10,000 dari bank dengan kadar faedah sama rata 5% setahun selama 5 tahun. Kira jumlah bayaran balik (A).", options: ["RM2500", "RM10500", "RM12500", "RM50000"], answerIndex: 2, solution: "I = 10000 x 0.05 x 5 = RM2500. Jumlah Bayaran (A) = P + I = 10000 + 2500 = RM12500." }
+            ]
+        ],
+        // TAHAP 3: KBAT (Aplikasi/Penyelesaian Masalah)
+        3: [
+            // Bab 1: Fungsi Kuadratik
+            [
+                { question: "Sebuah roket dilancarkan. Ketinggiannya, h meter selepas t saat diberi oleh h(t) = -5t² + 20t. Bilakah roket itu mencecah tanah (h=0)?", options: ["2 saat", "4 saat", "5 saat", "20 saat"], answerIndex: 1, solution: "-5t² + 20t = 0. Faktorkan: -5t(t - 4) = 0. t=0 (masa mula), t=4 saat (mencecah tanah)." },
+                { question: "Panjang sebuah segi empat tepat adalah 3 cm lebih daripada lebarnya. Jika luasnya ialah 28 cm², cari lebarnya.", options: ["4 cm", "7 cm", "5 cm", "3 cm"], answerIndex: 0, solution: "Lebar=x, Panjang=x+3. Luas = x(x+3)=28. x² + 3x - 28 = 0. (x+7)(x-4)=0. Maka x=4 (panjang mesti positif)." },
+                { question: "Cari nilai minimum bagi fungsi f(x) = x² - 6x + 10.", options: ["10", "3", "1", "-6"], answerIndex: 2, solution: "Guna penyempurnaan kuasa dua atau rumus paksi simetri x = -(-6)/2(1) = 3. Ganti x=3 ke fungsi: 3² - 6(3) + 10 = 9 - 18 + 10 = 1." }
+            ],
+            // Bab 2: Asas Nombor
+            [
+                { question: "Diberi 10110₂ - x₂ = 1101₂. Cari x.", options: ["10001", "1011", "111", "1001"], answerIndex: 3, solution: "Tukar ke asas 10: 22 - x = 13. Maka x = 9. Tukar 9₁₀ ke asas 2 = 1001₂." },
+                { question: "123₄ + 32₄ = ?", options: ["221₄", "201₄", "155₄", "211₄"], answerIndex: 0, solution: "Tukar ke asas 10: 123₄ = 27₁₀, 32₄ = 14₁₀. 27+14 = 41₁₀. Tukar 41₁₀ ke asas 4 = 221₄." },
+                { question: "Apakah nilai x₅ terbesar yang kurang daripada 100₁₀?", options: ["344₅", "400₅", "343₅", "444₅"], answerIndex: 0, solution: "Nilai terkecil 3 digit asas 5 ialah 100₅=25. Maksimum 3 digit ialah 444₅=124 (Lebih 100). Kita tahu 100₁₀ = 400₅. Maka nilai x₅ terbesar < 100₁₀ ialah 400₅ - 1₅ = 344₅." }
+            ],
+            // Bab 3: Penaakulan Logik
+            [
+                { question: "Tulis premis 2: Premis 1: Jika x>5, maka x>0. Premis 2: _____. Kesimpulan: x tidak lebih besar dari 5.", options: ["x > 0", "x < 5", "x ≤ 0", "x = 0"], answerIndex: 2, solution: "Struktur modus tollens: Jika P maka Q. Premis 2: ~Q (Bukan Q). Maka kesimpulan: ~P. Q ialah x>0, maka ~Q ialah x ≤ 0." },
+                { question: "Pernyataan 'Semua nombor genap boleh dibahagi 2'. Nyatakan kes yang menafikannya (Counter-example).", options: ["4 boleh dibahagi 2", "0 ialah nombor genap", "Tiada kes penafian (Pernyataan sentiasa Benar)", "3 tidak boleh dibahagi 2"], answerIndex: 2, solution: "Definisi nombor genap adalah nombor bulat yang boleh dibahagi tepat dengan 2. Jadi tiada 'counter-example' yang wujud." },
+                { question: "Implikasi 'x=y jika dan hanya jika x²=y²'. Apakah kelemahan implikasi ini?", options: ["Salah kerana jika x=2, y=-2, x²=y² (4=4) tetapi x≠y.", "Ia sentiasa benar.", "Hanya benar untuk nombor positif.", "Salah untuk nombor perpuluhan."], answerIndex: 0, solution: "'Jika dan hanya jika' bermaksud hubungan dua hala. Implikasi 'Jika x²=y² maka x=y' adalah Palsu kerana punca kuasa dua boleh beri nilai +/-." }
+            ],
+             // Bab 4: Operasi Set
+            [
+                { question: "Dalam kelas 40 murid, 25 suka Matematik, 20 suka Sains, 10 suka kedua-duanya. Berapa yang TIDAK suka kedua-duanya?", options: ["5", "10", "15", "0"], answerIndex: 0, solution: "Jumlah n(M U S) = 25 + 20 - 10 = 35. Jumlah murid = 40. Tidak suka = 40 - 35 = 5." },
+                { question: "Jika n(P ∪ Q) = 50, n(P) = 30, n(Q') = 25. Cari n(Q) jika set semesta n(ξ)=60.", options: ["25", "35", "15", "20"], answerIndex: 1, solution: "n(Q) = n(ξ) - n(Q') = 60 - 25 = 35." },
+                { question: "Diberi A ⊂ B. Apakah A ∩ B?", options: ["B", "A", "{}", "A ∪ B"], answerIndex: 1, solution: "Jika A ialah subset B (semua dalam A ada dalam B), persilangan mereka adalah set A itu sendiri." }
+            ],
+            // Bab 5: Rangkaian
+            [
+                { question: "Sebuah syarikat kurier mahu menghantar barang ke 5 bandar berbeza. Konsep graf apakah yang paling sesuai untuk mencari laluan paling jimat?", options: ["Pokok (Tree)", "Graf Mudah", "Pokok Merentangi Minimum (MST)", "Graf Tak Terarah"], answerIndex: 2, solution: "Minimum Spanning Tree (MST) menyambungkan semua bucu dengan jumlah pemberat (kos/jarak) paling rendah tanpa membentuk kitaran." },
+                { question: "Jika terdapat satu laluan yang bermula dan berakhir di bucu yang sama, ia dipanggil...", options: ["Laluan", "Tepi berganda", "Gelung (Loop)", "Darjah"], answerIndex: 2, solution: "Gelung ialah tepi yang menyambungkan sesuatu bucu kepada dirinya sendiri." },
+                { question: "Dalam graf rangkaian jalan raya bandar, kesesakan lalu lintas sehala paling sesuai diwakili oleh...", options: ["Pemberat", "Graf tak terarah", "Graf Terarah (Directed Graph)", "Darjah Bucu"], answerIndex: 2, solution: "Graf terarah mempunyai anak panah yang menunjukkan pergerakan satu arah sahaja (sehala)." }
+            ],
+             // Bab 6: Ketaksamaan Linear
+            [
+                { question: "Ali beli x buku (RM4) & y pen (RM2). Bajet maksima RM20. Tulis ketaksamaan.", options: ["4x + 2y > 20", "4x + 2y < 20", "4x + 2y ≥ 20", "4x + 2y ≤ 20"], answerIndex: 3, solution: "Bajet 'maksima' RM20 bermaksud jumlah kos (4x + 2y) mestilah kurang daripada atau sama dengan (≤) RM20." },
+                { question: "Sistem ketaksamaan: x+y ≤ 5, x ≥ 0, y ≥ 0. Bentuk poligon rantau penyelesaian di kuadran pertama ialah...", options: ["Segi empat tepat", "Segi tiga bersudut tegak", "Trapezium", "Segi empat sama"], answerIndex: 1, solution: "Garis x=0 (paksi-y), y=0 (paksi-x) dan x+y=5 akan memotong pada (5,0) dan (0,5), membentuk segi tiga bersudut tegak dengan asalan." },
+                { question: "Jika y ≥ x dan y ≤ -x + 4. Apakah nilai integer maksimum bagi y?", options: ["4", "2", "3", "0"], answerIndex: 1, solution: "Persilangan y=x dan y=-x+4 ialah pada 2y=4 -> y=2. Rantau penyelesaian memuncak pada y=2." }
+            ],
+            // Bab 7: Graf Gerakan
+            [
+                { question: "Graf Laju-Masa bentuk segi tiga. Laju maksimum 20m/s dicapai pada 5s. Berhenti pada 10s. Cari jumlah jarak.", options: ["100 m", "200 m", "50 m", "10 m"], answerIndex: 0, solution: "Jumlah jarak = Luas segi tiga = 1/2 × tapak (masa) × tinggi (laju) = 1/2 × 10 × 20 = 100 m." },
+                { question: "Kadar perubahan laju (Pecutan) bagi 5 saat terakhir graf di atas (dari 5s ke 10s) ialah...", options: ["-4 m/s²", "4 m/s²", "-2 m/s²", "0 m/s²"], answerIndex: 0, solution: "Pecutan = (Laju Akhir - Laju Awal)/Masa = (0 - 20) / (10 - 5) = -20 / 5 = -4 m/s²." },
+                { question: "Jika Jarak = 2t² + 5t. Apakah graf jarak-masa yang dijangkakan?", options: ["Garis lurus", "Lengkung Kuadratik", "Garis mendatar", "Segi tiga"], answerIndex: 1, solution: "Persamaan mempunyai t², iaitu persamaan kuadratik. Oleh itu graf berbentuk lengkung parobola." }
+            ],
+            // Bab 8: Sukatan Serakan
+            [
+                { question: "Dua set data A dan B ada Min sama. Varians A = 4, Varians B = 10. Data mana lebih konsisten?", options: ["Set A", "Set B", "Kedua-duanya sama", "Tidak pasti"], answerIndex: 0, solution: "Semakin kecil varians/sisihan piawai, semakin dekat taburan data kepada min. Ini menunjukkan bacaan lebih 'konsisten' (Set A)." },
+                { question: "Set x mempunyai sisihan piawai 3. Jika setiap data dalam set x didarab 2, apakah varians baharu?", options: ["6", "9", "36", "18"], answerIndex: 2, solution: "Sisihan piawai baharu = 3 x 2 = 6. Varians baharu = (Sisihan piawai)² = 6² = 36." },
+                { question: "Kenal pasti 'Pencilan' (Outlier) dalam data: 12, 14, 15, 16, 50.", options: ["16", "50", "12", "Tiada"], answerIndex: 1, solution: "Pencilan ialah cerapan yang nilainya jauh lebih besar atau jauh lebih kecil berbanding dengan kebanyakan data. Di sini, 50 jauh menyimpang." }
+            ],
+             // Bab 9: Kebarangkalian
+            [
+                { question: "Kotak ada 3 Guli Merah(M) & 2 Biru(B). 2 guli dikeluarkan SATU DEMI SATU TANPA DIKEMBALIKAN. Cari P(M, M).", options: ["9/25", "6/25", "3/10", "6/20"], answerIndex: 2, solution: "P(M1) = 3/5. Guli merah tinggal 2, jumlah guli tinggal 4. P(M2) = 2/4. P(M,M) = (3/5) x (2/4) = 6/20 = 3/10." },
+                { question: "Dalam soalan tadi, cari kebarangkalian mendapat Guli Berlainan Warna.", options: ["3/5", "6/10", "12/25", "1/2"], answerIndex: 0, solution: "P(Berlainan) = P(M,B) + P(B,M) = (3/5 x 2/4) + (2/5 x 3/4) = 6/20 + 6/20 = 12/20 = 3/5." },
+                { question: "P(Lulus BM) = 0.6, P(Lulus Sejarah) = 0.7. Cari P(Lulus Sekurang-kurangnya SATU subjek).", options: ["0.88", "0.42", "0.12", "1.3"], answerIndex: 0, solution: "P(Gagal kedua-dua) = (1-0.6) x (1-0.7) = 0.4 x 0.3 = 0.12. P(Lulus min 1) = 1 - 0.12 = 0.88." }
+            ],
+            // Bab 10: Matematik Pengguna
+            [
+                { question: "Abu melabur RM5000 dalam unit amanah. Harga seunit jatuh 10%. Dia terima dividen 5%. Cari nilai terkini dan baki 'Return'.", options: ["Rugi 5%", "Untung 5%", "Rugi 15%", "Breakeven (Tiada untung/rugi)"], answerIndex: 0, solution: "Kejatuhan modal -10%, Dividen +5%. Nilai bersih pelaburan menyusut: -10% + 5% = -5% (Rugi Keseluruhan)." },
+                { question: "Faedah kompaun: P=1000, r=4%, kompaun suku tahunan (4 kali/tahun) selama 1 tahun. Kira nilai Akhir MV.", options: ["RM1040.60", "RM1040.00", "RM1160.00", "RM1400.00"], answerIndex: 0, solution: "MV = P(1 + r/n)^(nt) = 1000(1 + 0.04/4)^(4*1) = 1000(1.01)^4 = 1000(1.0406) = RM1040.60." },
+                { question: "Konsep Purata Kos Pemurataan (Ringgit Cost Averaging) digunakan dalam saham bertujuan untuk...", options: ["Jamin untung lumayan", "Kurangkan risiko fluktuasi harga saham", "Mengelak cukai", "Tingkat jumlah saham syarikat"], answerIndex: 1, solution: "Membeli saham berkala dengan jumlah wang sama (cth: RM100 setiap bulan) akan merendahkan kos purata seunit jika pasaran jatuh." }
+            ]
+        ]
+    };
+
+    // Fungsi Sokongan UI
+    window.showModal = (title, message) => {
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-message').innerHTML = message;
+        document.getElementById('modal').classList.remove('hidden');
+    };
+    window.closeModal = () => {
+        document.getElementById('modal').classList.add('hidden');
+    };
+
+    const contentDiv = document.getElementById('app-content');
+
+    // Inisialisasi Firebase Auth
+    async function initAuth() {
+        if (!auth) {
+            isFirebaseReady = false;
+            renderRoleSelect();
+            return;
+        }
+        
+        try {
+            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            if (token) {
+                await signInWithCustomToken(auth, token);
+            } else {
+                await signInAnonymously(auth);
+            }
+            isFirebaseReady = true;
+            renderRoleSelect();
+        } catch (error) {
+            console.error("Auth error:", error);
+            isFirebaseReady = false;
+            renderRoleSelect(); // Teruskan juga tanpa simpanan awan
+        }
+    }
+
+    // Render Views
+    function renderRoleSelect() {
+        contentDiv.innerHTML = `
+            <div class="w-full max-w-sm fade-in text-center">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">Selamat Datang! Sila Pilih Peranan Anda:</h3>
+                <div class="space-y-4">
+                    <button onclick="window.appNav('student-login')" class="w-full bg-blue-500 text-white p-4 rounded-xl font-bold text-lg btn-hover-effect flex items-center justify-center gap-3">
+                        <i class="fas fa-user-graduate"></i> Saya Murid
+                    </button>
+                    <button onclick="window.appNav('teacher-login')" class="w-full bg-school-gold text-white p-4 rounded-xl font-bold text-lg btn-hover-effect flex items-center justify-center gap-3">
+                        <i class="fas fa-chalkboard-teacher"></i> Saya Guru
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderTeacherLogin() {
+        contentDiv.innerHTML = `
+            <div class="w-full max-w-sm fade-in">
+                <button onclick="window.appNav('role-select')" class="text-gray-500 hover:text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> Kembali
+                </button>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Log Masuk Guru</h3>
+                <p class="text-gray-600 mb-6 text-sm">Masukkan e-mel anda untuk melihat markah murid.</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">E-mel Guru</label>
+                        <input type="email" id="t-email" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-school-blue focus:ring-1 focus:ring-school-blue" placeholder="cikgu@sekolah.edu.my">
+                    </div>
+                    <button onclick="window.processTeacherLogin()" class="w-full bg-school-blue text-white p-3 rounded-lg font-bold btn-hover-effect mt-2">
+                        Semak Markah Murid
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    window.processTeacherLogin = async () => {
+        const email = document.getElementById('t-email').value.trim();
+        if (!email) {
+            showModal("Ralat", "Sila masukkan e-mel anda.");
+            return;
+        }
+        State.teacher.email = email;
+        
+        if (!isFirebaseReady || !auth.currentUser) {
+            showModal("Amaran Pangkalan Data", "Sistem pangkalan data tidak dapat disambungkan ketika ini. Harap maklum.");
+            return;
+        }
+
+        contentDiv.innerHTML = `<div class="text-school-blue flex flex-col items-center"><i class="fas fa-spinner fa-spin fa-3x mb-4"></i><p>Mengambil data markah...</p></div>`;
+        
+        try {
+            // Mandate: Use /artifacts/{appId}/public/data/scores
+            // Fetch all, filter in memory
+            const q = collection(db, 'artifacts', appId, 'public', 'data', 'math_scores');
+            const snapshot = await getDocs(q);
+            let results = [];
+            
+            snapshot.forEach((doc) => {
+                let data = doc.data();
+                if(data.teacherEmail && data.teacherEmail.toLowerCase() === email.toLowerCase()) {
+                    results.push(data);
+                }
+            });
+            
+            // Sort by timestamp descending
+            results.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            renderTeacherDashboard(results);
+            
+        } catch (error) {
+            console.error("Fetch error:", error);
+            showModal("Ralat", "Gagal mengambil data markah murid.");
+            renderTeacherLogin();
+        }
+    };
+
+    function renderTeacherDashboard(results) {
+        let rows = '';
+        if (results.length === 0) {
+            rows = `<tr><td colspan="4" class="text-center py-4 text-gray-500">Tiada rekod markah dijumpai untuk e-mel ini.</td></tr>`;
+        } else {
+            results.forEach(r => {
+                const date = new Date(r.timestamp).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' });
+                rows += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">${r.studentName}</td>
+                        <td class="p-3">${r.className}</td>
+                        <td class="p-3 font-bold text-school-blue">Lvl ${r.level} (${r.score}/3)</td>
+                        <td class="p-3 text-sm text-gray-500">${date}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        contentDiv.innerHTML = `
+            <div class="w-full max-w-2xl fade-in flex flex-col h-full">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-clipboard-list text-school-blue mr-2"></i>Dashboard Guru</h3>
+                    <button onclick="window.appNav('role-select')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition">Log Keluar</button>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">E-mel: <span class="font-semibold">${State.teacher.email}</span></p>
+                
+                <div class="overflow-x-auto bg-white border border-gray-200 rounded-lg shadow-sm max-h-[300px] overflow-y-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-100 text-gray-700 sticky top-0">
+                            <tr>
+                                <th class="p-3 border-b">Nama Murid</th>
+                                <th class="p-3 border-b">Kelas</th>
+                                <th class="p-3 border-b">Keputusan</th>
+                                <th class="p-3 border-b">Tarikh</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderStudentLogin() {
+        contentDiv.innerHTML = `
+            <div class="w-full max-w-sm fade-in">
+                <button onclick="window.appNav('role-select')" class="text-gray-500 hover:text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> Kembali
+                </button>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Maklumat Murid</h3>
+                <p class="text-gray-600 mb-6 text-sm">Sila lengkapkan profil anda sebelum mula menjawab.</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-1">Nama Penuh</label>
+                        <input type="text" id="s-name" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-school-blue" placeholder="Cth: Ali bin Abu" value="${State.student.name}">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-1">Kelas</label>
+                        <input type="text" id="s-class" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-school-blue" placeholder="Cth: 4 Sains" value="${State.student.className}">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-1">E-mel Guru Subjek</label>
+                        <input type="email" id="s-teacher" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-school-blue" placeholder="Cth: cikgu@sekolah.edu.my" value="${State.student.teacherEmail}">
+                    </div>
+                    <button onclick="window.processStudentLogin()" class="w-full bg-blue-500 text-white p-3 rounded-lg font-bold btn-hover-effect mt-2 text-lg">
+                        Mula Ulangkaji <i class="fas fa-play ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    window.processStudentLogin = () => {
+        const name = document.getElementById('s-name').value.trim();
+        const cls = document.getElementById('s-class').value.trim();
+        const teacher = document.getElementById('s-teacher').value.trim();
+
+        if (!name || !cls || !teacher) {
+            showModal("Maklumat Tidak Lengkap", "Sila isikan Nama, Kelas, dan E-mel Guru anda untuk meneruskan.");
+            return;
+        }
+
+        State.student.name = name;
+        State.student.className = cls;
+        State.student.teacherEmail = teacher;
+        
+        window.appNav('level-select');
+    };
+
+    function renderLevelSelect() {
+        contentDiv.innerHTML = `
+            <div class="w-full max-w-md fade-in text-center">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-800">Pilih Tahap Cabaran</h3>
+                    <button onclick="window.appNav('student-login')" class="text-sm text-gray-500 hover:text-gray-800"><i class="fas fa-edit"></i> Profil</button>
+                </div>
+                
+                <p class="text-gray-600 mb-6">Hai ${State.student.name}, bersedia untuk menguji minda?</p>
+                
+                <div class="space-y-4">
+                    <button onclick="window.startLevel(1)" class="w-full bg-green-500 text-white p-4 rounded-xl font-bold text-lg btn-hover-effect flex items-center justify-between shadow-md">
+                        <span><i class="fas fa-star text-yellow-300 mr-2"></i> Level 1: Senang (30 Soalan)</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button onclick="window.startLevel(2)" class="w-full bg-yellow-500 text-white p-4 rounded-xl font-bold text-lg btn-hover-effect flex items-center justify-between shadow-md">
+                        <span><i class="fas fa-star text-yellow-100 mr-1"></i><i class="fas fa-star text-yellow-100 mr-2"></i> Level 2: Sederhana (30 Soalan)</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button onclick="window.startLevel(3)" class="w-full bg-red-500 text-white p-4 rounded-xl font-bold text-lg btn-hover-effect flex items-center justify-between shadow-md">
+                        <span><i class="fas fa-fire text-yellow-300 mr-2"></i> Level 3: KBAT (30 Soalan)</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="mt-6 text-sm text-gray-500 border-t pt-4">
+                    <p><i class="fas fa-info-circle"></i> Setiap level mengandungi 3 soalan untuk 10 Bab Matematik KSSM Tingkatan 4.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    window.startLevel = (level) => {
+        State.currentLevel = level;
+        State.currentTopicIndex = 0;
+        State.currentQIndex = 0;
+        State.score = 0;
+        State.topicScore = 0;
+        renderTopicTransition();
+    };
+
+    function renderTopicTransition() {
+        const topicName = State.topics[State.currentTopicIndex];
+        
+        contentDiv.innerHTML = `
+            <div class="w-full max-w-sm fade-in text-center flex flex-col items-center justify-center min-h-[300px]">
+                <i class="fas fa-book-open fa-3x text-school-blue mb-6"></i>
+                <h3 class="text-xl text-gray-500 font-semibold mb-2">Seterusnya...</h3>
+                <h2 class="text-3xl font-bold text-gray-800 mb-8">${topicName}</h2>
+                <div class="w-16 h-1 bg-school-gold rounded-full mb-8"></div>
+                <button onclick="window.renderGameplay()" class="w-full bg-school-blue text-white p-4 rounded-xl font-bold text-lg btn-hover-effect">
+                    Mula Bab Ini <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        `;
+    }
+
+    window.renderGameplay = function() {
+        State.isAnswered = false;
+        
+        // Akses data soalan: Level -> Bab -> Soalan
+        const topicData = QuizData[State.currentLevel][State.currentTopicIndex];
+        const qData = topicData[State.currentQIndex];
+        const totalQInTopic = topicData.length;
+        
+        const lvlColors = {1: 'bg-green-100 text-green-800', 2: 'bg-yellow-100 text-yellow-800', 3: 'bg-red-100 text-red-800'};
+        const lvlNames = {1: 'Senang', 2: 'Sederhana', 3: 'KBAT'};
+
+        let optionsHTML = '';
+        const labels = ['A', 'B', 'C', 'D'];
+        qData.options.forEach((opt, idx) => {
+            optionsHTML += `
+                <button id="opt-${idx}" onclick="window.checkAnswer(${idx})" class="option-btn w-full text-left p-4 rounded-lg bg-gray-50 mb-3 text-gray-800 flex items-start gap-3 shadow-sm">
+                    <span class="font-bold bg-white border border-gray-300 rounded w-8 h-8 flex items-center justify-center shrink-0 shadow-sm">${labels[idx]}</span>
+                    <span class="mt-1">${opt}</span>
+                </button>
+            `;
+        });
+
+        // Kira soalan keseluruhan (cth: Soalan 4 / 30)
+        const overallQNumber = (State.currentTopicIndex * 3) + State.currentQIndex + 1;
+        const totalOverallQ = State.topics.length * 3; // 10 bab x 3 soalan = 30
+
+        contentDiv.innerHTML = `
+            <div class="w-full max-w-2xl fade-in flex flex-col h-full">
+                <!-- Status Bar -->
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                    <span class="px-3 py-1 rounded-full text-xs font-bold ${lvlColors[State.currentLevel]} shadow-sm">Level ${State.currentLevel}: ${lvlNames[State.currentLevel]}</span>
+                    <span class="text-sm font-bold text-school-blue bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Jum. Soalan: ${overallQNumber} / ${totalOverallQ}</span>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-6">
+                    <div class="bg-school-gold h-2 rounded-full transition-all duration-500" style="width: ${(overallQNumber / totalOverallQ) * 100}%"></div>
+                </div>
+                
+                <!-- Topik & Soalan -->
+                <div class="mb-6 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                    <p class="text-xs text-school-blue font-bold uppercase tracking-wider mb-3"><i class="fas fa-tag mr-1"></i> ${State.topics[State.currentTopicIndex]}</p>
+                    <h3 class="text-xl font-semibold text-gray-800 leading-relaxed">${qData.question}</h3>
+                </div>
+                
+                <!-- Pilihan Jawapan -->
+                <div id="options-container" class="mb-2">
+                    ${optionsHTML}
+                </div>
+                
+                <!-- Kawasan Penyelesaian (Sembunyi by default) -->
+                <div id="solution-container" class="hidden mt-auto bg-blue-50 p-5 rounded-xl border border-blue-200 shadow-inner mb-4">
+                    <h4 class="font-bold text-school-blue mb-2 flex items-center"><i class="fas fa-lightbulb text-yellow-500 mr-2 fa-lg"></i> Langkah Penyelesaian:</h4>
+                    <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap" id="solution-text"></p>
+                </div>
+
+                <!-- Butang Seterusnya -->
+                <button id="next-btn" onclick="window.nextQuestion()" class="hidden w-full bg-school-blue text-white p-4 rounded-xl font-bold text-lg btn-hover-effect mt-4 shadow-md">
+                    Teruskan <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        `;
+    }
+
+    window.checkAnswer = (selectedIndex) => {
+        if (State.isAnswered) return;
+        State.isAnswered = true;
+        
+        const topicData = QuizData[State.currentLevel][State.currentTopicIndex];
+        const qData = topicData[State.currentQIndex];
+        const correctIndex = qData.answerIndex;
+        
+        // Disable all buttons
+        for(let i=0; i<4; i++) {
+            const btn = document.getElementById(`opt-${i}`);
+            if(btn) {
+                btn.disabled = true;
+                btn.classList.add('opacity-70', 'cursor-not-allowed');
+            }
+        }
+
+        // Highlight Jawapan
+        const selectedBtn = document.getElementById(`opt-${selectedIndex}`);
+        const correctBtn = document.getElementById(`opt-${correctIndex}`);
+        
+        if (selectedIndex === correctIndex) {
+            State.score++;
+            State.topicScore++;
+            selectedBtn.classList.remove('bg-gray-50', 'opacity-70');
+            selectedBtn.classList.add('option-correct', 'opacity-100', 'shadow-md');
+            selectedBtn.innerHTML = `<span class="font-bold bg-green-200 border-green-500 text-green-800 rounded w-8 h-8 flex items-center justify-center shrink-0 shadow-sm"><i class="fas fa-check"></i></span><span class="mt-1">${qData.options[selectedIndex]}</span>`;
+        } else {
+            selectedBtn.classList.remove('bg-gray-50', 'opacity-70');
+            selectedBtn.classList.add('option-wrong', 'opacity-100', 'shadow-md');
+            selectedBtn.innerHTML = `<span class="font-bold bg-red-200 border-red-500 text-red-800 rounded w-8 h-8 flex items-center justify-center shrink-0 shadow-sm"><i class="fas fa-times"></i></span><span class="mt-1">${qData.options[selectedIndex]}</span>`;
+            
+            // Show correct answer visually too
+            correctBtn.classList.remove('bg-gray-50', 'opacity-70');
+            correctBtn.classList.add('option-correct', 'opacity-100', 'ring-2', 'ring-green-500');
+        }
+
+        // Tunjuk Penyelesaian
+        const solContainer = document.getElementById('solution-container');
+        document.getElementById('solution-text').innerHTML = qData.solution;
+        solContainer.classList.remove('hidden');
+        solContainer.classList.add('fade-in');
+
+        // Semak jika soalan terakhir untuk bab ini, ubah teks butang
+        const nextBtn = document.getElementById('next-btn');
+        const isLastQInTopic = State.currentQIndex === topicData.length - 1;
+        const isLastTopic = State.currentTopicIndex === State.topics.length - 1;
+        
+        if (isLastQInTopic && isLastTopic) {
+             nextBtn.innerHTML = `Lihat Keputusan Keseluruhan <i class="fas fa-flag-checkered ml-2"></i>`;
+             nextBtn.classList.replace('bg-school-blue', 'bg-school-gold');
+        } else if (isLastQInTopic) {
+             nextBtn.innerHTML = `Teruskan ke Bab Seterusnya <i class="fas fa-forward ml-2"></i>`;
+        }
+        
+        nextBtn.classList.remove('hidden');
+    };
+
+    window.nextQuestion = () => {
+        const topicData = QuizData[State.currentLevel][State.currentTopicIndex];
+        
+        // Cek adakah ini soalan terakhir dalam Bab semasa
+        if (State.currentQIndex < topicData.length - 1) {
+            State.currentQIndex++;
+            renderGameplay();
+        } else {
+            // Cek adakah ini Bab Terakhir
+            if (State.currentTopicIndex < State.topics.length - 1) {
+                State.currentTopicIndex++;
+                State.currentQIndex = 0; // Reset index soalan untuk bab baru
+                State.topicScore = 0; // (Opsional: Jika mahu track markah per bab)
+                renderTopicTransition();
+            } else {
+                // Semua Bab Selesai
+                renderResult();
+            }
+        }
+    };
+
+    async function renderResult() {
+        const totalQ = State.topics.length * 3; // 30 soalan
+        const percentage = Math.round((State.score / totalQ) * 100);
+        let feedbackMsg = '';
+        let icon = '';
+        let color = '';
+        
+        if (percentage >= 80) {
+            feedbackMsg = "Hebat! Penguasaan yang amat cemerlang.";
+            icon = "fa-trophy";
+            color = "text-yellow-500";
+        } else if (percentage >= 50) {
+            feedbackMsg = "Bagus! Teruskan usaha anda untuk A+.";
+            icon = "fa-star";
+            color = "text-school-blue";
+        } else {
+            feedbackMsg = "Jangan putus asa! Buat ulang kaji dan cuba lagi.";
+            icon = "fa-book-reader";
+            color = "text-gray-500";
+        }
+
+        contentDiv.innerHTML = `
+            <div class="w-full max-w-sm fade-in text-center flex flex-col items-center">
+                <i class="fas ${icon} fa-4x ${color} mb-4"></i>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Tahniah!</h2>
+                <p class="text-gray-600 mb-6">Anda telah menamatkan Level ${State.currentLevel}.</p>
+                
+                    <p class="text-sm text-gray-500 mb-1">Markah Keseluruhan (Merangkumi 10 Bab)</p>
+                    <p class="text-5xl font-extrabold text-school-blue">${State.score}<span class="text-2xl text-gray-400">/${totalQ}</span></p>
+                    <p class="text-lg font-bold ${percentage >= 50 ? 'text-green-500' : 'text-red-500'} mt-2">${percentage}%</p>
+                    <p class="mt-3 font-medium text-gray-700">${feedbackMsg}</p>
+                </div>
+                
+                <div id="save-status" class="text-sm text-school-blue mb-4 font-semibold flex items-center gap-2">
+                    <i class="fas fa-circle-notch fa-spin"></i> Sedang menghantar markah kepada guru...
+                </div>
+
+                <div class="w-full space-y-3">
+                    <button onclick="window.shareWhatsApp()" class="w-full bg-green-500 text-white p-3 rounded-lg font-bold hover:bg-green-600 transition flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fab fa-whatsapp"></i> Maklumkan Guru via WhatsApp
+                    </button>
+                    <button onclick="window.appNav('level-select')" class="w-full bg-white border-2 border-school-blue text-school-blue p-3 rounded-lg font-bold hover:bg-blue-50 transition shadow-sm">
+                        Pilih Level Lain
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Simpan markah ke Firestore
+        await submitScoreToCloud();
+    }
+
+    async function submitScoreToCloud() {
+        const statusDiv = document.getElementById('save-status');
+        if (!isFirebaseReady || !auth.currentUser) {
+            statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle text-yellow-500"></i> Disimpan secara lokal (Tiada sambungan DB)`;
+            statusDiv.className = "text-sm text-yellow-600 mb-4 font-semibold flex items-center justify-center gap-2";
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'math_scores'), {
+                studentName: State.student.name,
+                className: State.student.className,
+                teacherEmail: State.student.teacherEmail,
+                level: State.currentLevel,
+                score: State.score,
+                timestamp: new Date().toISOString()
+            });
+            statusDiv.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> Markah berjaya dihantar kepada guru.`;
+            statusDiv.className = "text-sm text-green-600 mb-4 font-semibold flex items-center justify-center gap-2";
+        } catch (error) {
+            console.error("Save score error:", error);
+            statusDiv.innerHTML = `<i class="fas fa-times-circle text-red-500"></i> Gagal menghantar markah.`;
+            statusDiv.className = "text-sm text-red-600 mb-4 font-semibold flex items-center justify-center gap-2";
+        }
+    }
+
+    window.shareWhatsApp = () => {
+        const totalQ = State.topics.length * 3;
+        const percentage = Math.round((State.score / totalQ) * 100);
+        const msg = `Salam Cikgu. Saya ${State.student.name} dari kelas ${State.student.className}. Saya telah selesai menjawab Kuiz Ulangkaji Matematik Tingkatan 4 (Level ${State.currentLevel}) merangkumi 10 bab. Markah saya: ${State.score}/${totalQ} (${percentage}%). Terima kasih!`;
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+        window.open(waUrl, '_blank');
+    };
+
+    // Navigation Router
+    window.appNav = (viewStr) => {
+        State.view = viewStr;
+        switch(viewStr) {
+            case 'role-select': renderRoleSelect(); break;
+            case 'teacher-login': renderTeacherLogin(); break;
+            case 'student-login': renderStudentLogin(); break;
+            case 'level-select': renderLevelSelect(); break;
+            // 'game', 'result', 'teacher-dash' ditangani oleh fungsi spesifik
+        }
+    };
+
+    // Mula Aplikasi
+    window.onload = () => {
+        initAuth();
+    };
+
+</script>
+</body>
+</html>
